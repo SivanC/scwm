@@ -39,6 +39,7 @@ class WindowManager {
 		void OnConfigureRequest(const XConfigureRequestEvent& e);
 		void OnMapRequest(const XMapRequestEvent& e);
 
+		static ::std::string XRequestToString(unsigned char request_code);
 };
 
 #endif

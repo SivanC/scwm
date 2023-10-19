@@ -36,7 +36,7 @@ void WindowManager::Run() {
 	XSelectInput(
 		display_,
 		root_,
-		SubstructureRedirectMask | SubstructureNotifyMask);
+		SubstructureRedirectMask | SubstructureNotifyMask | KeyPressMask);
 	XSync(display_, false);
 	if (wm_detected_) {
 		LOG(ERROR) << "Detected another window manager on display "
@@ -68,7 +68,7 @@ void WindowManager::Run() {
 		// next event
 		XEvent e;
 		XNextEvent(display_, &e);
-		LOG(INFO) << "Received event: " << e.type; //<< ToString(e);
+		LOG(INFO) << "Received event: " << e.type;//XRequestToString(e.type); //<< ToString(e);
 
 		// dispatch
 		switch (e.type) {
@@ -203,6 +203,7 @@ void WindowManager::OnConfigureRequest(const XConfigureRequestEvent& e) {
 }
 
 void WindowManager::OnMapRequest(const XMapRequestEvent& e) {
+	//XSelectInput(display_, e.window, KeyPressMask);
 	Frame(e.window, false);
 	XMapWindow(display_, e.window);
 }
@@ -227,7 +228,7 @@ void WindowManager::Frame(Window w, bool was_created_before_window_manager) {
 		root_,
 		x_window_attrs.x,
 		x_window_attrs.y,
-		1000,//x_window_attrs.width,
+		x_window_attrs.width,
 		x_window_attrs.height,
 		BORDER_WIDTH,
 		BORDER_COLOR,
@@ -236,7 +237,8 @@ void WindowManager::Frame(Window w, bool was_created_before_window_manager) {
 	XSelectInput(
 		display_,
 		frame,
-		SubstructureRedirectMask | SubstructureNotifyMask);
+		SubstructureRedirectMask | SubstructureNotifyMask
+		| KeyPressMask);
 
 	XAddToSaveSet(display_, w);
 
@@ -289,15 +291,13 @@ void WindowManager::OnUnmapNotify(const XUnmapEvent& e) {
 }
 
 void WindowManager::OnKeyPress(const XKeyPressedEvent& e) {
-	switch(e.keycode) {
-		default:
-			Window win = XCreateSimpleWindow(display_, root_, 
-					0, 0, 
-					300, 300,
-					0, 0, 0);
-			Frame(win, false);
-			XMapWindow(display_, win);
-			break;
+	if ((e.state & Mod1Mask) && (e.keycode == XKeysymToKeycode(display_, XK_q))) {
+		// get active focus
+		Window focus;
+		int revert_to;
+		XGetInputFocus(display_, &focus, &revert_to);
+
+		XDestroyWindow(display_, focus);
 	}
 }
 
@@ -308,3 +308,130 @@ void WindowManager::OnConfigureNotify(const XConfigureEvent& e) {}
 void WindowManager::OnDestroyNotify(const XDestroyWindowEvent& e) {}
 
 void WindowManager::OnCirculateNotify(const XCirculateEvent& e) {}
+
+std::string WindowManager::XRequestToString(unsigned char request_code) {
+  static const char* const X_REQUEST_CODE_NAMES[] = {
+      "",
+      "CreateWindow",
+      "ChangeWindowAttributes",
+      "GetWindowAttributes",
+      "DestroyWindow",
+      "DestroySubwindows",
+      "ChangeSaveSet",
+      "ReparentWindow",
+      "MapWindow",
+      "MapSubwindows",
+      "UnmapWindow",
+      "UnmapSubwindows",
+      "ConfigureWindow",
+      "CirculateWindow",
+      "GetGeometry",
+      "QueryTree",
+      "InternAtom",
+      "GetAtomName",
+      "ChangeProperty",
+      "DeleteProperty",
+      "GetProperty",
+      "ListProperties",
+      "SetSelectionOwner",
+      "GetSelectionOwner",
+      "ConvertSelection",
+      "SendEvent",
+      "GrabPointer",
+      "UngrabPointer",
+      "GrabButton",
+      "UngrabButton",
+      "ChangeActivePointerGrab",
+      "GrabKeyboard",
+      "UngrabKeyboard",
+      "GrabKey",
+      "UngrabKey",
+      "AllowEvents",
+      "GrabServer",
+      "UngrabServer",
+      "QueryPointer",
+      "GetMotionEvents",
+      "TranslateCoords",
+      "WarpPointer",
+      "SetInputFocus",
+      "GetInputFocus",
+      "QueryKeymap",
+      "OpenFont",
+      "CloseFont",
+      "QueryFont",
+      "QueryTextExtents",
+      "ListFonts",
+      "ListFontsWithInfo",
+      "SetFontPath",
+      "GetFontPath",
+      "CreatePixmap",
+      "FreePixmap",
+      "CreateGC",
+      "ChangeGC",
+      "CopyGC",
+      "SetDashes",
+      "SetClipRectangles",
+      "FreeGC",
+      "ClearArea",
+      "CopyArea",
+      "CopyPlane",
+      "PolyPoint",
+      "PolyLine",
+      "PolySegment",
+      "PolyRectangle",
+      "PolyArc",
+      "FillPoly",
+      "PolyFillRectangle",
+      "PolyFillArc",
+      "PutImage",
+      "GetImage",
+      "PolyText8",
+      "PolyText16",
+      "ImageText8",
+      "ImageText16",
+      "CreateColormap",
+      "FreeColormap",
+      "CopyColormapAndFree",
+      "InstallColormap",
+      "UninstallColormap",
+      "ListInstalledColormaps",
+      "AllocColor",
+      "AllocNamedColor",
+      "AllocColorCells",
+      "AllocColorPlanes",
+      "FreeColors",
+      "StoreColors",
+      "StoreNamedColor",
+      "QueryColors",
+      "LookupColor",
+      "CreateCursor",
+      "CreateGlyphCursor",
+      "FreeCursor",
+      "RecolorCursor",
+      "QueryBestSize",
+      "QueryExtension",
+      "ListExtensions",
+      "ChangeKeyboardMapping",
+      "GetKeyboardMapping",
+      "ChangeKeyboardControl",
+      "GetKeyboardControl",
+      "Bell",
+      "ChangePointerControl",
+      "GetPointerControl",
+      "SetScreenSaver",
+      "GetScreenSaver",
+      "ChangeHosts",
+      "ListHosts",
+      "SetAccessControl",
+      "SetCloseDownMode",
+      "KillClient",
+      "RotateProperties",
+      "ForceScreenSaver",
+      "SetPointerMapping",
+      "GetPointerMapping",
+      "SetModifierMapping",
+      "GetModifierMapping",
+      "NoOperation",
+  };
+  return X_REQUEST_CODE_NAMES[request_code];
+}
